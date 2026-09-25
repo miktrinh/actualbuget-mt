@@ -13,6 +13,14 @@ import { post } from '#server/post';
 import { getServer } from '#server/server-config';
 import { batchMessages } from '#server/sync';
 import { batchUpdateTransactions } from '#server/transactions';
+import {
+  findTransferCandidates,
+  linkImportedTransfers,
+} from '#server/transactions/detect-transfers';
+import type {
+  TransferCandidate,
+  TransferLink,
+} from '#server/transactions/detect-transfers';
 import { runRules } from '#server/transactions/transaction-rules';
 import {
   defaultMappings,
@@ -630,6 +638,13 @@ export type ReconcileTransactionsResult = {
     ignored?: boolean;
     tombstone?: boolean;
   }>;
+  // Suggested transfers for transactions that would be newly added. Only
+  // populated in preview mode; newly added transactions never appear in
+  // `updatedPreview`, which only describes matches against existing rows.
+  transferPreview: Array<{
+    transaction: TransactionEntity;
+    candidate: TransferCandidate;
+  }>;
 };
 
 export async function reconcileTransactions(
@@ -650,6 +665,7 @@ export async function reconcileTransactions(
   const updated = [];
   const added = [];
   const updatedPreview = [];
+  const transferLinks: TransferLink[] = [];
   const existingPayeeMap = new Map<string, string>();
 
   const {
@@ -751,7 +767,13 @@ export async function reconcileTransactions(
       }
     } else {
       // Insert a new transaction
-      const { forceAddTransaction: _forceAddTransaction, ...newTrans } = trans;
+      const {
+        forceAddTransaction: _forceAddTransaction,
+        // A transfer accepted in the import preview. It is applied after the
+        // insert, since both legs have to be written together.
+        transfer_id: transferCounterpartId,
+        ...newTrans
+      } = trans;
       const finalTransaction = {
         ...newTrans,
         id: uuidv4(),
@@ -763,6 +785,15 @@ export async function reconcileTransactions(
         added.push(...makeSplitTransaction(finalTransaction, subtransactions));
       } else {
         added.push(finalTransaction);
+
+        // Only plain transactions are linked: a split transfers through its
+        // children, which are never offered for linking individually.
+        if (transferCounterpartId) {
+          transferLinks.push({
+            transactionId: finalTransaction.id,
+            counterpartId: transferCounterpartId,
+          });
+        }
       }
     }
   }
@@ -773,9 +804,22 @@ export async function reconcileTransactions(
     t.sort_order ??= now - index * TRANSACTION_SORT_INCREMENT;
   });
 
+  // Only file imports offer transfer detection; bank sync accounts get their
+  // transfers from the provider or from rules.
+  const transferPreview =
+    isPreview && !isBankSyncAccount
+      ? await findTransferCandidates(
+          acctId,
+          // Split transactions transfer through their children, never the
+          // parent, and we do not offer to link children individually.
+          added.filter(trans => !trans.is_parent && !trans.is_child),
+        )
+      : [];
+
   if (!isPreview) {
     await createNewPayees(payeesToCreate, [...added, ...updated]);
     await batchUpdateTransactions({ added, updated });
+    await linkImportedTransfers(transferLinks);
   }
 
   logger.log('Debug data for the operations:', {
@@ -791,6 +835,7 @@ export async function reconcileTransactions(
     added: added.map(trans => trans.id),
     updated: updated.map(trans => trans.id),
     updatedPreview,
+    transferPreview,
   };
 }
 

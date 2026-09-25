@@ -293,6 +293,13 @@ export type AgeOfMoneyWidget = AbstractWidget<
   } | null
 >;
 
+export type AccountBalancesWidget = AbstractWidget<
+  'account-balances-card',
+  {
+    name?: string;
+  } | null
+>;
+
 type SpecializedWidget =
   | NetWorthWidget
   | CashFlowWidget
@@ -306,6 +313,7 @@ type SpecializedWidget =
   | FormulaWidget
   | SankeyWidget
   | AgeOfMoneyWidget
+  | AccountBalancesWidget
   | BalanceForecastWidget;
 export type DashboardWidgetEntity = SpecializedWidget | CustomReportWidget;
 export type NewDashboardWidgetEntity = Omit<

@@ -734,7 +734,8 @@ type AccountMenuProps = {
       | 'toggle-reconciled'
       | 'toggle-net-worth-chart'
       | 'manage-columns'
-      | 'account-group',
+      | 'account-group'
+      | 'account-kind',
   ) => void;
 };
 
@@ -783,6 +784,10 @@ function AccountMenu({
               } as const,
             ]
           : []),
+        {
+          name: 'account-kind',
+          text: t('Set account type'),
+        },
         {
           name: 'toggle-reconciled',
           text: showReconciled

@@ -66,6 +66,12 @@ export type Modal =
       };
     }
   | {
+      name: 'account-kind';
+      options: {
+        accountId: AccountEntity['id'];
+      };
+    }
+  | {
       name: 'close-account';
       options: {
         account: AccountEntity;

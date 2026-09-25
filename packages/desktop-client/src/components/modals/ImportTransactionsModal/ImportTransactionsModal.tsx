@@ -35,6 +35,7 @@ import { Modal, ModalCloseButton, ModalHeader } from '#components/common/Modal';
 import { SectionLabel } from '#components/forms';
 import { LabeledCheckbox } from '#components/forms/LabeledCheckbox';
 import { TableHeader, TableWithNavigator } from '#components/table';
+import { useAccounts } from '#hooks/useAccounts';
 import { useCategories } from '#hooks/useCategories';
 import { useDateFormat } from '#hooks/useDateFormat';
 import { useSyncedPrefs } from '#hooks/useSyncedPrefs';
@@ -45,6 +46,7 @@ import { FieldMappings } from './FieldMappings';
 import { InOutOption } from './InOutOption';
 import { MultiplierOption } from './MultiplierOption';
 import { Transaction } from './Transaction';
+import { TransferSuggestion } from './TransferSuggestion';
 import type { DateFormat, FieldMapping, ImportTransaction } from './utils';
 import {
   applyFieldMappings,
@@ -211,6 +213,7 @@ export function ImportTransactionsModal({
   const dateFormat = useDateFormat() || ('MM/dd/yyyy' as const);
   const [prefs, savePrefs] = useSyncedPrefs();
   const { data: { list: categories } = { list: [] } } = useCategories();
+  const { data: accounts = [] } = useAccounts();
 
   const [multiplierAmount, setMultiplierAmount] = useState('');
   const [loadingState, setLoadingState] = useState<
@@ -625,6 +628,16 @@ export function ImportTransactionsModal({
     setTransactions(newTransactions);
   }
 
+  function onToggleTransfer(trx_id: string) {
+    setTransactions(
+      transactions.map(trans =>
+        trans.trx_id === trx_id
+          ? { ...trans, selected_transfer: !trans.selected_transfer }
+          : trans,
+      ),
+    );
+  }
+
   const importTransactions = useImportTransactionsMutation();
 
   async function onImport(close) {
@@ -685,8 +698,17 @@ export function ImportTransactionsModal({
         selected: _selected,
         selected_merge: _selected_merge,
         trx_id: _trx_id,
+        transfer_candidate_id: _transfer_candidate_id,
+        transfer_candidate_account: _transfer_candidate_account,
+        selected_transfer: _selected_transfer,
         ...finalTransaction
       } = trans;
+
+      if (trans.transfer_candidate_id && trans.selected_transfer) {
+        // Picked up server-side after the insert and turned into a real
+        // two-legged transfer.
+        finalTransaction.transfer_id = trans.transfer_candidate_id;
+      }
 
       if (
         reconcile &&
@@ -822,10 +844,16 @@ export function ImportTransactionsModal({
         reimportDeleted,
       },
       {
-        onSuccess: previewTrx => {
-          const matchedUpdateMap = previewTrx.reduce((map, entry) => {
+        onSuccess: ({ updatedPreview, transferPreview }) => {
+          const matchedUpdateMap = updatedPreview.reduce((map, entry) => {
             // @ts-expect-error - entry.transaction might not have trx_id property
             map[entry.transaction.trx_id] = entry;
+            return map;
+          }, {});
+
+          const transferMap = transferPreview.reduce((map, entry) => {
+            // @ts-expect-error - entry.transaction might not have trx_id property
+            map[entry.transaction.trx_id] = entry.candidate;
             return map;
           }, {});
 
@@ -846,6 +874,16 @@ export function ImportTransactionsModal({
 
               currentTrx.selected = !currentTrx.ignored;
               currentTrx.selected_merge = currentTrx.existing;
+
+              // Suggested transfers start accepted; the user unticks the ones
+              // that are coincidence rather than a real move between accounts.
+              const transferCandidate = transferMap[currentTrx.trx_id];
+              currentTrx.transfer_candidate_id = transferCandidate?.id;
+              currentTrx.transfer_candidate_account =
+                accounts.find(
+                  account => account.id === transferCandidate?.account,
+                )?.name ?? '';
+              currentTrx.selected_transfer = !!transferCandidate;
 
               next = next.concat({ ...currentTrx });
 
@@ -998,6 +1036,13 @@ export function ImportTransactionsModal({
                       onCheckTransaction={onCheckTransaction}
                       reconcile={reconcile}
                     />
+                    {item.transfer_candidate_id && (
+                      <TransferSuggestion
+                        accountName={item.transfer_candidate_account ?? ''}
+                        isAccepted={!!item.selected_transfer}
+                        onToggle={() => onToggleTransfer(item.trx_id)}
+                      />
+                    )}
                   </View>
                 )}
               />

@@ -5,6 +5,7 @@ import type {
   CategoryEntity,
 } from '@actual-app/core/types/models';
 
+import type { AccountKindBucket } from '#accounts/accountKind';
 import { uncategorizedTransactions } from '#queries';
 
 import { parametrizedField } from '.';
@@ -101,6 +102,23 @@ export function accountGroupBalance(
       .options({ splits: 'none' })
       .calculate({ $sum: '$amount' }),
   } satisfies Binding<'account', `account-group-balance-${string}`>;
+}
+
+export function accountKindBalance(bucket: AccountKindBucket) {
+  // Annotated rather than inferred: inference would produce a union of the four
+  // concrete names, which does not match `SheetFields<'account'>`.
+  const name: `account-kind-balance-${string}` = `account-kind-balance-${bucket}`;
+
+  return {
+    name,
+    query: q('transactions')
+      .filter({
+        'account.account_kind': bucket === 'unclassified' ? null : bucket,
+        'account.closed': false,
+      })
+      .options({ splits: 'none' })
+      .calculate({ $sum: '$amount' }),
+  } satisfies Binding<'account', `account-kind-balance-${string}`>;
 }
 
 export function categoryBalance(

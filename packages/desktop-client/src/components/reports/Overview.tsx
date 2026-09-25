@@ -54,6 +54,7 @@ import { DashboardHeader } from './DashboardHeader';
 import './overview.scss';
 import { DashboardSelector } from './DashboardSelector';
 import { LoadingIndicator } from './LoadingIndicator';
+import { AccountBalancesCard } from './reports/AccountBalancesCard';
 import { AgeOfMoneyCard } from './reports/AgeOfMoneyCard';
 import { BalanceForecastCard } from './reports/BalanceForecastCard';
 import { BudgetAnalysisCard } from './reports/BudgetAnalysisCard';
@@ -298,7 +299,8 @@ export function Overview({ dashboard }: OverviewProps) {
       widget: {
         type,
         width: 4,
-        height: type === 'sankey-card' ? 3 : 2,
+        height:
+          type === 'sankey-card' || type === 'account-balances-card' ? 3 : 2,
         meta,
         dashboard_page_id: dashboard.id,
       },
@@ -595,6 +597,10 @@ export function Overview({ dashboard }: OverviewProps) {
                               text: t('Age of Money'),
                             },
                             {
+                              name: 'account-balances-card' as const,
+                              text: t('Account balances'),
+                            },
+                            {
                               name: 'spending-card' as const,
                               text: t('Spending analysis'),
                             },
@@ -816,6 +822,15 @@ export function Overview({ dashboard }: OverviewProps) {
                             widgetId={item.i}
                             isEditing={isEditing}
                             accounts={accounts}
+                            meta={widget.meta}
+                            onMetaChange={newMeta =>
+                              onMetaChange(item, newMeta)
+                            }
+                          />
+                        ) : widget.type === 'account-balances-card' ? (
+                          <AccountBalancesCard
+                            widgetId={item.i}
+                            isEditing={isEditing}
                             meta={widget.meta}
                             onMetaChange={newMeta =>
                               onMetaChange(item, newMeta)

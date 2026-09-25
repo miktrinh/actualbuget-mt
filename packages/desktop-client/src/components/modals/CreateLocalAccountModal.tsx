@@ -9,12 +9,15 @@ import { FormError } from '@actual-app/components/form-error';
 import { InitialFocus } from '@actual-app/components/initial-focus';
 import { InlineField } from '@actual-app/components/inline-field';
 import { Input } from '@actual-app/components/input';
+import { Select } from '@actual-app/components/select';
 import { Text } from '@actual-app/components/text';
 import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import { toRelaxedNumber } from '@actual-app/core/shared/util';
 
 import { useCreateAccountMutation } from '#accounts';
+import type { AccountKindBucket } from '#accounts/accountKind';
+import { ACCOUNT_KINDS } from '#accounts/accountKind';
 import { Link } from '#components/common/Link';
 import {
   Modal,
@@ -25,6 +28,7 @@ import {
 } from '#components/common/Modal';
 import { Checkbox } from '#components/forms';
 import { validateAccountName } from '#components/util/accountValidation';
+import { useAccountKindLabels } from '#hooks/useAccountKindLabels';
 import { useAccounts } from '#hooks/useAccounts';
 import { useNavigate } from '#hooks/useNavigate';
 import { useSyncServerStatus } from '#hooks/useSyncServerStatus';
@@ -40,6 +44,10 @@ export function CreateLocalAccountModal() {
   const [name, setName] = useState('');
   const [offbudget, setOffbudget] = useState(false);
   const [balance, setBalance] = useState('0');
+  const [accountKind, setAccountKind] = useState<AccountKindBucket>(
+    'unclassified',
+  );
+  const accountKindLabels = useAccountKindLabels();
 
   const [nameError, setNameError] = useState(null);
   const [balanceError, setBalanceError] = useState(false);
@@ -72,6 +80,7 @@ export function CreateLocalAccountModal() {
           name,
           balance: toRelaxedNumber(balance),
           offBudget: offbudget,
+          accountKind: accountKind === 'unclassified' ? null : accountKind,
         },
         {
           onSuccess: id => {
@@ -140,6 +149,20 @@ export function CreateLocalAccountModal() {
                   {nameError}
                 </FormError>
               )}
+
+              <InlineField label={t('Type')} width="100%">
+                <Select
+                  options={[
+                    ...ACCOUNT_KINDS.map(
+                      kind => [kind, accountKindLabels[kind]] as const,
+                    ),
+                    ['unclassified', accountKindLabels.unclassified] as const,
+                  ]}
+                  value={accountKind}
+                  onChange={setAccountKind}
+                  style={{ flex: 1 }}
+                />
+              </InlineField>
 
               <View
                 style={{

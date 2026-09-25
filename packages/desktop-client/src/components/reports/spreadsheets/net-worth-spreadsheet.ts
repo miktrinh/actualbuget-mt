@@ -23,9 +23,32 @@ type Balance = {
 type AccountBalanceData = {
   id: string;
   name: string;
+  kind: AccountEntity['account_kind'];
   balances: Record<string, Balance>;
   starting: number;
 };
+
+/**
+ * Accounts are bucketed by what they are, not by the sign they happen to carry
+ * in a given interval: a credit card stays debt even when overpaid, and an
+ * overdrawn current account stays a (negative) asset. Accounts the user has not
+ * classified keep the original sign-based behaviour so existing budgets report
+ * the same numbers until they are classified.
+ */
+function isDebtBalance(
+  kind: AccountEntity['account_kind'],
+  balance: number,
+): boolean {
+  switch (kind) {
+    case 'credit':
+      return true;
+    case 'current':
+    case 'savings':
+      return false;
+    default:
+      return balance < 0;
+  }
+}
 
 type TransferLeg = Pick<
   TransactionEntity,
@@ -203,6 +226,7 @@ export function createSpreadsheet(
         return {
           id: acct.id,
           name: acct.name,
+          kind: acct.account_kind ?? null,
           balances: processedBalances,
           starting,
         };
@@ -426,7 +450,7 @@ function recalculate(
       const balance = acctBalances[idx];
       balances[data[i].id] = balance;
 
-      if (balance < 0) {
+      if (isDebtBalance(data[i].kind, balance)) {
         debt += -balance;
       } else {
         assets += balance;

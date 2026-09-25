@@ -26,6 +26,7 @@ const ALL_WIDGET_TYPES = allWidgetTypes(
   'balance-forecast-card',
   'age-of-money-card',
   'monte-carlo-card',
+  'account-balances-card',
 );
 
 describe('isWidgetType', () => {

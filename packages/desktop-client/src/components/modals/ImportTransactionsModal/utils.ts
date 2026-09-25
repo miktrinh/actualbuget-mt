@@ -137,6 +137,11 @@ export type ImportTransaction = {
   notes?: string;
   category?: string;
   date?: string;
+  // Set during preview when an unambiguous counterpart was found in another
+  // account, and cleared before the transaction is sent for import.
+  transfer_candidate_id?: string;
+  transfer_candidate_account?: string;
+  selected_transfer?: boolean;
 } & Record<string, string | number | boolean>;
 
 type ImportCategory = {

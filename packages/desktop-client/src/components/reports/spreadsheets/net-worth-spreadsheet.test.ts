@@ -32,7 +32,11 @@ const accounts = [
   createAccount('savings', 'Savings'),
 ] satisfies AccountEntity[];
 
-function createAccount(id: string, name: string): AccountEntity {
+function createAccount(
+  id: string,
+  name: string,
+  account_kind: AccountEntity['account_kind'] = null,
+): AccountEntity {
   return {
     id,
     name,
@@ -42,6 +46,7 @@ function createAccount(id: string, name: string): AccountEntity {
     last_reconciled: null,
     tombstone: 0,
     account_group_id: null,
+    account_kind,
     account_id: null,
     bank: null,
     bankName: null,
@@ -373,4 +378,42 @@ describe('net worth transfers', () => {
       expect(totals).toEqual(totals.map(() => 100_000));
     },
   );
+});
+
+describe('net worth assets and debt', () => {
+  it('counts a credit account as debt even when its balance is positive', async () => {
+    const report = await runReport({
+      accounts: [createAccount('amex', 'AMEX', 'credit')],
+      accountQueryResults: [5_000, []],
+    });
+
+    expect(report.graphData.data[0]).toMatchObject({
+      assets: '0',
+      debt: '--5000',
+    });
+  });
+
+  it('keeps an overdrawn current account in assets', async () => {
+    const report = await runReport({
+      accounts: [createAccount('checking', 'Checking', 'current')],
+      accountQueryResults: [-5_000, []],
+    });
+
+    expect(report.graphData.data[0]).toMatchObject({
+      assets: '-5000',
+      debt: '-0',
+    });
+  });
+
+  it('falls back to sign-based classification for unclassified accounts', async () => {
+    const report = await runReport({
+      accounts: [createAccount('mystery', 'Mystery')],
+      accountQueryResults: [-5_000, []],
+    });
+
+    expect(report.graphData.data[0]).toMatchObject({
+      assets: '0',
+      debt: '-5000',
+    });
+  });
 });

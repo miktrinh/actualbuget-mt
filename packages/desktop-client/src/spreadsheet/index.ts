@@ -14,6 +14,7 @@ export type Spreadsheets = {
     'offbudget-accounts-balance': number;
     'closed-accounts-balance': number;
     [key: `account-group-balance-${string}`]: number;
+    [key: `account-kind-balance-${string}`]: number;
     balanceCleared: number;
     balanceUncleared: number;
     lastReconciled: string | null;

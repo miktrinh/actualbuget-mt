@@ -59,6 +59,7 @@ type CreateAccountPayload = {
   name: string;
   balance: number;
   offBudget: boolean;
+  accountKind?: AccountEntity['account_kind'];
 };
 
 export function useCreateAccountMutation() {
@@ -67,11 +68,17 @@ export function useCreateAccountMutation() {
   const { t } = useTranslation();
 
   return useMutation({
-    mutationFn: async ({ name, balance, offBudget }: CreateAccountPayload) => {
+    mutationFn: async ({
+      name,
+      balance,
+      offBudget,
+      accountKind,
+    }: CreateAccountPayload) => {
       const id = await send('account-create', {
         name,
         balance,
         offBudget,
+        accountKind,
       });
       return id;
     },
@@ -222,15 +229,16 @@ export function useImportPreviewTransactionsMutation() {
       transactions,
       reimportDeleted,
     }: ImportPreviewTransactionsPayload) => {
-      const { errors = [], updatedPreview } = await send(
-        'transactions-import',
-        {
-          accountId,
-          transactions,
-          isPreview: true,
-          opts: reimportDeleted !== undefined ? { reimportDeleted } : undefined,
-        },
-      );
+      const {
+        errors = [],
+        updatedPreview,
+        transferPreview,
+      } = await send('transactions-import', {
+        accountId,
+        transactions,
+        isPreview: true,
+        opts: reimportDeleted !== undefined ? { reimportDeleted } : undefined,
+      });
 
       errors.forEach(error => {
         dispatch(
@@ -243,7 +251,7 @@ export function useImportPreviewTransactionsMutation() {
         );
       });
 
-      return updatedPreview;
+      return { updatedPreview, transferPreview };
     },
     onSuccess: () => invalidateQueries(queryClient),
     onError: error => {

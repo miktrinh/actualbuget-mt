@@ -417,6 +417,10 @@ export const applyMessages = sequential(async (messages: Message[]) => {
         'onbudget-accounts-balance',
         'offbudget-accounts-balance',
         'closed-accounts-balance',
+        'account-kind-balance-current',
+        'account-kind-balance-savings',
+        'account-kind-balance-credit',
+        'account-kind-balance-unclassified',
       ] as const;
       for (const cellName of globalAggregateCells) {
         const fullName = resolveName('__global', cellName);

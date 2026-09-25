@@ -17,6 +17,7 @@ function makeAccount(id: string): AccountEntity {
     name: id,
     offbudget: 0,
     closed: 0,
+    account_kind: null,
     sort_order: 0,
     last_reconciled: null,
     tombstone: 0,
